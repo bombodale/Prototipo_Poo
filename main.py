@@ -31,6 +31,9 @@ def menu():
 6) Registrar horas
 7) Generar informes
 8) CRUD tabla SIN NOMBRE (genérica)
+--- Loggin ---
+9) Crear usuario
+10) Iniciar sesión
 0) Salir
 """)
 
@@ -142,7 +145,33 @@ def main():
 
         elif op == "8":
             crud_tabla_sin_nombre()
+        elif op == "9":
+            # Crear un usuario nuevo
+            usuario = input("Nombre de usuario: ")
+            password = input("Contraseña: ")
+            rol = input("Rol (admin/gerente/empleado): ").strip().lower()
+            if rol not in ("admin", "gerente", "empleado"):
+                print("❌ Rol inválido.")
+            else:
+                UsuarioDAO().crear(usuario, password, rol)
+                print(f"✅ Usuario '{usuario}' creado con rol '{rol}'.")
 
+        elif op == "10":
+            # Iniciar sesión
+            usuario = input("Usuario: ")
+            password = input("Contraseña: ")
+            u = UsuarioDAO().obtener(usuario)
+
+            if u is None:
+                print("❌ Usuario no encontrado.")
+            elif u.autenticar(usuario, password):
+                print(f"✅ Bienvenido, {usuario}. Rol: {u.get_rol()}")
+                if u.verificar_permiso("admin"):
+                    print("   → Acceso total al sistema.")
+                else:
+                    print("   → Acceso limitado.")
+            else:
+                print("❌ Contraseña incorrecta.")
         elif op == "0":
             Database().cerrar()
             print("Conexión cerrada. Hasta pronto.")
