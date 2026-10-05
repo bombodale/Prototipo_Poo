@@ -1,59 +1,153 @@
+"""
+Punto de entrada de Eco Tech Solutions.
+Prueba el modelo UML + conexión MySQL + CRUD (incluye tabla sin nombre).
+"""
 from datetime import date
-from cifrado import Cifrado
-from persona import Persona
-from empleado import Empleado
-from departamento import Departamento
-from proyecto import Proyecto
-from registro_tiempo import RegistroTiempo
-from usuario import Usuario
-from crear_informes import CrearInformes
+
+from config.conexion import Database
+from acceso_dato.crud_basedatos import CRUD_DB
+from acceso_dato.persona_datos import PersonaDAO
+from acceso_dato.empleado_datos import EmpleadoDAO
+from acceso_dato.departamento_datos import DepartamentoDAO
+from acceso_dato.proyecto_datos import ProyectoDAO
+from acceso_dato.registro_tiempo_datos import RegistroTiempoDAO
+from acceso_dato.usuario_datos import UsuarioDAO
+
+from modelo.persona import Persona
+from modelo.empleado import Empleado
+from modelo.departamento import Departamento
+from modelo.proyecto import Proyecto
+from modelo.generador_informes import GeneradorInformes
+
+
+def menu():
+    print("""
+========= Eco Tech Solutions =========
+1) Probar conexión a MySQL
+2) Crear Persona
+3) Crear Empleado
+4) Crear Departamento
+5) Crear Proyecto
+6) Registrar horas
+7) Generar informes
+8) CRUD tabla SIN NOMBRE (genérica)
+0) Salir
+""")
+
+
+def crud_tabla_sin_nombre():
+    """CRUD de la tabla cuya denominación aún no ha sido definida."""
+    crud = CRUD_DB("tabla_sin_nombre")
+    while True:
+        print("""
+--- Tabla sin nombre ---
+a) Insertar
+b) Listar
+c) Buscar por id
+d) Actualizar
+e) Eliminar
+f) Volver
+""")
+        op = input("Opción: ").lower()
+        try:
+            if op == "a":
+                datos = {
+                    "campo1": input("campo1: "),
+                    "campo2": input("campo2: "),
+                    "campo3": input("campo3: "),
+                }
+                print("Insertado con ID:", crud.insertar(datos))
+            elif op == "b":
+                for f in crud.listar():
+                    print(f)
+            elif op == "c":
+                print(crud.buscar_por_id(int(input("ID: "))))
+            elif op == "d":
+                id_ = int(input("ID a actualizar: "))
+                datos = {
+                    "campo1": input("nuevo campo1: "),
+                    "campo2": input("nuevo campo2: "),
+                    "campo3": input("nuevo campo3: "),
+                }
+                print("Filas afectadas:", crud.actualizar(id_, datos))
+            elif op == "e":
+                print("Eliminado:", crud.eliminar(int(input("ID: "))))
+            elif op == "f":
+                break
+        except Exception as e:
+            print("Error:", e)
+
 
 def main():
-    # 1. Crear empleados
-    emp1 = Empleado(1, "Ana Pérez", "Av. Siempre Viva 123", "+56912345678",
-                    "ana.perez@ecotech.cl", date(2023, 3, 1), 1200000)
-    emp2 = Empleado(2, "Luis Gómez", "Calle Falsa 456", "+56987654321",
-                    "luis.gomez@ecotech.cl", date(2022, 7, 15), 1500000)
+    while True:
+        menu()
+        op = input("Seleccione opción: ").strip()
 
-    # 2. Crear departamento y asignar gerente
-    depto = Departamento("Desarrollo Sostenible", emp1)
-    emp1.asignarDepartamento(depto)
-    emp2.asignarDepartamento(depto)
+        if op == "1":
+            db = Database()
+            if db.obtener_conexion() and db.obtener_conexion().is_connected():
+                print("✅ Conexión OK a", Database.DATABASE)
+            else:
+                print("❌ No se pudo conectar. Revisa XAMPP.")
 
-    # 3. Crear proyectos
-    proy1 = Proyecto("Panel Solar Inteligente", "Optimización de paneles", date(2024, 1, 10))
-    proy2 = Proyecto("Reciclaje de Aguas", "Sistema de filtrado", date(2024, 2, 20))
+        elif op == "2":
+            p = Persona(
+                nombre=input("Nombre: "),
+                direccion=input("Dirección: "),
+                telefono=input("Teléfono: "),
+                email=input("Email: ")
+            )
+            PersonaDAO().crear(p)
+            print("Persona creada con ID", p.get_id())
 
-    emp1.asignarProyecto(proy1)
-    emp2.asignarProyecto(proy1)
-    emp2.asignarProyecto(proy2)
+        elif op == "3":
+            emp = Empleado(
+                nombre=input("Nombre: "),
+                email=input("Email: "),
+                fecha_inicio_contrato=date.today(),
+                salario=float(input("Salario: "))
+            )
+            EmpleadoDAO().crear(emp)
+            print("Empleado creado con ID", emp.get_id())
 
-    # 4. Registrar horas (composición)
-    reg1 = RegistroTiempo(101, date(2024, 3, 1), 8, "Desarrollo de módulo", emp1, proy1)
-    reg2 = RegistroTiempo(102, date(2024, 3, 2), 6, "Pruebas de integración", emp2, proy1)
-    reg3 = RegistroTiempo(103, date(2024, 3, 3), 4, "Análisis de datos", emp2, proy2)
+        elif op == "4":
+            dep = Departamento(nombre=input("Nombre del departamento: "))
+            DepartamentoDAO().crear(dep)
+            print("Departamento creado ID", dep.get_id())
 
-    # 5. Usuario y autenticación
-    usuario = Usuario("ana.perez", "ClaveSegura123", "admin")
-    print("Autenticación exitosa:", usuario.autenticar("ana.perez", "ClaveSegura123"))
-    print("Permiso de escritura:", usuario.verificarPermiso("escritura"))
+        elif op == "5":
+            proy = Proyecto(
+                nombre=input("Nombre proyecto: "),
+                descripcion=input("Descripción: "),
+                fecha_inicio=date.today()
+            )
+            ProyectoDAO().crear(proy)
+            print("Proyecto creado ID", proy.get_id())
 
-    # 6. Generar informes
-    generador = CrearInformes("PDF")
-    informe_emp = generador.generarInformeEmpleados([emp1, emp2])
-    print(informe_emp)
-    generador.exportarPDF(informe_emp)
+        elif op == "6":
+            rid = RegistroTiempoDAO().crear(
+                fecha=input("Fecha (YYYY-MM-DD): "),
+                horas=float(input("Horas: ")),
+                descripcion=input("Descripción: "),
+                empleado_id=int(input("ID empleado: ")),
+                proyecto_id=int(input("ID proyecto: "))
+            )
+            print("Registro creado ID", rid)
 
-    informe_proy = generador.generarInformeProyectos([proy1, proy2])
-    print(informe_proy)
+        elif op == "7":
+            gen = GeneradorInformes()
+            print("Empleados:", EmpleadoDAO().listar())
+            print("Proyectos:", ProyectoDAO().listar())
+            print("Registros:", RegistroTiempoDAO().listar())
 
-    # 7. Mostrar salario descifrado y cálculo
-    print(f"Salario de Ana (descifrado): {emp1.descifrarSalario()}")
-    print(f"Sueldo total Ana: {emp1.calcularSueldoTotal()}")
+        elif op == "8":
+            crud_tabla_sin_nombre()
 
-    # 8. Validaciones
-    print("¿Email de Ana válido?", emp1.validarEmail())
-    print("¿Teléfono de Ana válido?", emp1.validarTelefono())
+        elif op == "0":
+            Database().cerrar()
+            print("Conexión cerrada. Hasta pronto.")
+            break
+
 
 if __name__ == "__main__":
     main()
