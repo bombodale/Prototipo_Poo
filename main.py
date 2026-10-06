@@ -30,12 +30,98 @@ def menu():
 5) Crear Proyecto
 6) Registrar horas
 7) Generar informes
-8) CRUD tabla SIN NOMBRE (genérica)
---- Loggin ---
-9) Crear usuario
-10) Iniciar sesión
+8) Registrar usuario
+9) Iniciar sesión
+10) Administrar cuentas (admin)
+11) CRUD tabla SIN NOMBRE (genérica)
 0) Salir
 """)
+
+
+def registrar_usuario():
+    print("\n--- Registro de usuario ---")
+    nombre = input("Nombre de usuario: ").strip()
+    password = input("Contraseña: ").strip()
+    rol = input("Rol (admin/gerente/empleado): ").strip().lower()
+
+    try:
+        UsuarioDAO().crear(nombre, password, rol)
+        print("✅ Usuario registrado correctamente.")
+        return True
+    except ValueError as e:
+        print(f"❌ Error: {e}")
+        return False
+
+
+def iniciar_sesion():
+    print("\n--- Inicio de sesión ---")
+    nombre = input("Nombre de usuario: ").strip()
+    password = input("Contraseña: ").strip()
+
+    usuario = UsuarioDAO().autenticar_usuario(nombre, password)
+    if usuario is None:
+        print("❌ Usuario o contraseña incorrectos.")
+        return None
+
+    print(f"✅ Bienvenido, {usuario.get_nombre_usuario()} ({usuario.get_rol()})")
+    return usuario
+
+
+def administrar_cuentas(usuario_actual):
+    if usuario_actual is None:
+        print("❌ Debes iniciar sesión antes de administrar cuentas.")
+        return
+
+    if usuario_actual.get_rol() != "admin":
+        print("❌ Solo un administrador puede administrar cuentas.")
+        return
+
+    while True:
+        print("""
+--- Administración de cuentas ---
+1) Ver usuarios
+2) Cambiar rol
+3) Cambiar contraseña
+4) Eliminar usuario
+5) Volver
+""")
+        opcion = input("Seleccione opción: ").strip()
+
+        try:
+            if opcion == "1":
+                usuarios = UsuarioDAO().listar()
+                if not usuarios:
+                    print("No hay usuarios registrados.")
+                for u in usuarios:
+                    print(f"- ID: {u['id']} | Usuario: {u['nombre_usuario']} | Rol: {u['rol']}")
+
+            elif opcion == "2":
+                id_usuario = int(input("ID del usuario: "))
+                nuevo_rol = input("Nuevo rol (admin/gerente/empleado): ").strip().lower()
+                UsuarioDAO().cambiar_rol(id_usuario, nuevo_rol)
+                print("✅ Rol actualizado.")
+
+            elif opcion == "3":
+                id_usuario = int(input("ID del usuario: "))
+                nueva_password = input("Nueva contraseña: ").strip()
+                UsuarioDAO().cambiar_password(id_usuario, nueva_password)
+                print("✅ Contraseña actualizada.")
+
+            elif opcion == "4":
+                id_usuario = int(input("ID del usuario a eliminar: "))
+                if id_usuario == usuario_actual.get_id():
+                    print("❌ No puedes eliminar tu propio usuario administrador.")
+                    continue
+                UsuarioDAO().eliminar(id_usuario)
+                print("✅ Usuario eliminado.")
+
+            elif opcion == "5":
+                break
+
+            else:
+                print("❌ Opción no válida.")
+        except Exception as e:
+            print(f"❌ Error: {e}")
 
 
 def crud_tabla_sin_nombre():
@@ -82,6 +168,14 @@ f) Volver
 
 
 def main():
+    db = Database()
+    usuario_actual = None
+
+    if db.obtener_conexion() and db.obtener_conexion().is_connected():
+        print("✅ Conexión OK a", Database.DATABASE)
+        tablas = db.crear_tablas_modelos()
+        print("✅ Tablas creadas/validadas:", ', '.join(tablas) if tablas else "ninguna")
+
     while True:
         menu()
         op = input("Seleccione opción: ").strip()
@@ -144,34 +238,17 @@ def main():
             print("Registros:", RegistroTiempoDAO().listar())
 
         elif op == "8":
-            crud_tabla_sin_nombre()
+            registrar_usuario()
+
         elif op == "9":
-            # Crear un usuario nuevo
-            usuario = input("Nombre de usuario: ")
-            password = input("Contraseña: ")
-            rol = input("Rol (admin/gerente/empleado): ").strip().lower()
-            if rol not in ("admin", "gerente", "empleado"):
-                print("❌ Rol inválido.")
-            else:
-                UsuarioDAO().crear(usuario, password, rol)
-                print(f"✅ Usuario '{usuario}' creado con rol '{rol}'.")
+            usuario_actual = iniciar_sesion()
 
         elif op == "10":
-            # Iniciar sesión
-            usuario = input("Usuario: ")
-            password = input("Contraseña: ")
-            u = UsuarioDAO().obtener(usuario)
+            administrar_cuentas(usuario_actual)
 
-            if u is None:
-                print("❌ Usuario no encontrado.")
-            elif u.autenticar(usuario, password):
-                print(f"✅ Bienvenido, {usuario}. Rol: {u.get_rol()}")
-                if u.verificar_permiso("admin"):
-                    print("   → Acceso total al sistema.")
-                else:
-                    print("   → Acceso limitado.")
-            else:
-                print("❌ Contraseña incorrecta.")
+        elif op == "11":
+            crud_tabla_sin_nombre()
+
         elif op == "0":
             Database().cerrar()
             print("Conexión cerrada. Hasta pronto.")
